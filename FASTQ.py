@@ -1,61 +1,73 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-# In[115]:
-
-import Bio
-import pandas as pd
-import numpy as np
-from Bio.Seq import Seq
+import os
 from Bio import SeqIO
-import os, fnmatch
+import pandas as pd
 
-#insert folder name saved in same directory
-print("\n----------------------\n* Welcome to Sarah's FASTQ program *\nThis script will find all fastq files within a folder path.\nIt will then calculate the number of occurances of each squence over 30nt long.\nThe files and squence information are then saved to a csv within the script's folder.\n\nThe csv includes:\nFile Name, File Path, Total Number of Squences, Number of Sequences above 30nt,\nPercent of Sequences over 30nt\n-----------------------\n")
+di = input('Can you kindly drag the folder directory into the prompt?')
+
+file_names_path = []
+file_names = []
+total = []
+num_over_thirty = []
+over_thirty = pd.DataFrame()
 
 
-user_input = input("folder path please: ")
-folder_path = os.path.abspath(user_input)
 
-result = []
-names = []
+def find_name(folder):
+    """
+    This function takes in a folder location and searches through that location
+    for fastq files. Once found the file and file path is split and the name is
+    bumped into a list and then into a dataframe.
+    """
 
-#search through directory and return files names and paths
-def find(pattern, path):
-    for root, dirs, files in os.walk(path):
-        for name in files:
-            if fnmatch.fnmatch(name, pattern):
-                result.append(os.path.join(root, name))
-                names.append(name)
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            if file.endswith(".fastq"):
+                file_names_path.append(os.path.join(root, file))
+                last_slash = file.split("/")[-1]
+                name = last_slash.split(".")[0]
+                file_names.append(name)
+    over_thirty['File Name'] = file_names
 
-    #return result, names
-    file_names = names
-find('*.fastq', folder_path)
 
-df = pd.DataFrame({'Names': names,'Path': result})
 
-#iterate over records and find seq over 30nt long
-#return total number of seq
-#return total number of seq over 30nt
-sum_counts = []
-record_len = []
-for i in range(len(df.index)):
-    records = list(SeqIO.parse(df['Path'][i], "fastq"))
-    count = 0
-    length = []
-    for i in range(len(records)):
-        length.append(len(records[i].seq))
-    for i in range(len(length)):
-        #print(length[i])
-        if length[i] > 30:
-            count = count + 1
-    sum_counts.append(count)
-    record_len.append(len(records))
+def parse_fastq_file(path):
+    for fastq_file in file_names_path:
 
-#Add information to dataframe
-df['Total'] = record_len
-df['Above_30_nt'] = sum_counts
+        #parse files into a list of sequence records
+        records = list(SeqIO.parse(fastq_file, "fastq"))
 
-#calculate percent of reads over 30nt long
-df['Percent_over_30'] = (df['Above_30_nt']/df['Total'])*100
-df.to_csv('over_thirty.csv', header=True, index=None, mode='a')
+        #append total number or records in each file to a list
+        record_num = len(records)
+        total.append(record_num)
+
+        #find all records for each file over length of 30nt append to list
+        num_count = 0
+        for i in range(len(records)):
+            if len(records[i].seq) >= 30:
+                num_count += 1
+        num_over_thirty.append(num_count)
+
+
+def calculate_over_30_per(total_seq, over_thirty_total):
+    """
+    This function adds total and total seq over 30 to a dataframe
+    and calculates the rounded percent for seq over 30.
+    """
+    over_thirty['Total Count'] = total_seq
+    over_thirty['Count over Thirty'] = over_thirty_total
+    over_thirty['Percent of Seq Over 30nt'] = round((over_thirty['Count over Thirty']/over_thirty['Total Count'])*100)
+
+
+
+find_name(di)
+parse_fastq_file(file_names_path)
+calculate_over_30_per(total, num_over_thirty)
+
+#drop unneeded coulmns
+over_thirty.drop(['Total Count','Count over Thirty'], axis=1, inplace=True)
+
+#print dataframe of file name and Percent of Seq over 30nt
+print(over_thirty)
