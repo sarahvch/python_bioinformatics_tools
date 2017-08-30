@@ -1,56 +1,49 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-# In[7]:
-
-import Bio
-import pandas as pd
-import numpy as np
-from Bio.Seq import Seq
-
-print("\n----------------------\n* Welcome to Sarah's FASTA program *\nThis script returns the top 10 most frequent sequence occurances in a fasta file. \nOutput is produced in csv format and saved in the script's folder.\nThe csv has the following information: sequence, length, count of occurances in fasta.\n-----------------------\n")
-#define file being used
-user_input = input("FASTA path/file please: ")
-
 from Bio import SeqIO
+import pandas as pd
+
+user_input = input('Could you kindly drag your FASTA file of interest into the consol?')
 records = list(SeqIO.parse(user_input, "fasta"))
 
-#add sequence and id to empty lists
-sequ = []
-ids = []
-for i in range(len(records)):
-    sequ.append(records[i].seq)
-    ids.append(records[i].id)
+seq_list = []
+df = pd.DataFrame()
 
-#create data frame with information
-df = pd.DataFrame(ids, columns=['IDS'])
-df['Sequence'] = sequ
-df['Length'] = df['Sequence'].apply(lambda x: len(df['Sequence'][x]))
-
-#iterate over dataframe and return counts of sequence occurances
-sl = []
-for i in range(len(df.index)):
-    nt = df[df['Length'] == df['Length'][i]]
-    same = nt[nt['Sequence'] == df['Sequence'][i]]
-    sl.append(len(same.index))
-
-#add count to dataframe
-df['Count'] = sl
-
-#sort dataframe based on count
-result = df.sort(['Count'], ascending=False)
-
-#drop IDS, might be import for something else but not needed here
-result = result.drop('IDS', axis=1)
-
-#drop duplicate rows
-results = result.drop_duplicates()
-
-#length and count for top 10 seq occurances
-topten = results.head(10)
-
-#write to csv
-topten.to_csv('top_ten_count.csv', header=True, index=None, mode='a')
+def add_seq_to_dataframe(folder_file):
+    """
+    This function takes in a paresed fasta file and interates over the records
+    in that file with the attribute seq. These sequences are bumped into a list
+    The list is assigned to an empty dataframe with a column called Sequence
+    """
+    for i in range(len(records)):
+        seq_list.append(str(records[i].seq))
+    df['Sequence'] = seq_list
 
 
-# In[ ]:
+
+count = []
+seq = []
+df_seq = pd.DataFrame()
+
+def unique_seq(df):
+    """
+    This function takes in a dataframe of sequences. It then find the unique
+    sequences within the dataframe and addes each to a list. All sequences that
+    match the unique sequence are bumped into a dataframe (ref_seq) and the
+    number of rows are counted and bumped into the list count. The unque Seq
+    and the count is then placed into a new dataframe (df_seq)
+    """
+    uniq_seq = list(df['Sequence'].unique())
+    for i in range(len(uniq_seq)):
+        ref_seq = df[df['Sequence'] == uniq_seq[i]]
+        seq.append(uniq_seq[i])
+        count.append(len(ref_seq))
+    df_seq['Seq'] = seq
+    df_seq['Count'] = count
+    df_seq.sort(['Count'], inplace=True, ascending=False)
+
+add_seq_to_dataframe(user_input)
+unique_seq(df)
+
+print(df_seq.head(20))
